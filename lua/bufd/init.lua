@@ -8,11 +8,18 @@ local function get_buffer_lines(bufs)
     local lines = {}
 
     for _, buf in ipairs(bufs) do
-        if vim.bo[buf].buflisted then
+        if vim.bo[buf].buflisted and vim.bo[buf].buftype == "" then
             local name = api.nvim_buf_get_name(buf)
-            table.insert(lines, name)
+            local stat = name ~= "" and vim.loop.fs_stat(name)
+
+            if stat and stat.type == "file" then
+                name = vim.fn.fnamemodify(name, ":p:~:.")
+                table.insert(lines, string.format("%d: %s", buf, name))
+            end
         end
     end
+
+    print(vim.inspect(lines))
 
     return lines
 end
