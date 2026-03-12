@@ -84,6 +84,12 @@ function M.create_window(ui, lines)
     if not S.is_bufnr_valid() then
         bufnr = api.nvim_create_buf(false, true)
         S.set_bufnr(bufnr)
+
+        -- Recommended UI buffer settings
+        api.nvim_buf_set_name(bufnr, "Bufd")
+        api.nvim_set_option_value("filetype", "bufd", { buf = bufnr })
+        -- Tell Neovim we will handle the :w action
+        api.nvim_set_option_value('buftype', 'acwrite', { buf = bufnr })
     else
         bufnr = assert(S.get_bufnr(), "bufnr should be valid here")
     end
@@ -92,16 +98,18 @@ function M.create_window(ui, lines)
 
     local row, col = calc_window_size(ui.height, ui.width)
 
+    local resize_group = api.nvim_create_augroup("BufdWindowResizer", { clear = true })
     --- Responsive floating window
     vim.api.nvim_create_autocmd("VimResized", {
+        group = resize_group,
         callback = function()
             if S.is_winid_valid() then
-                local winid = _state.winid --[[@as integer]]
-                local config = api.nvim_win_get_config(winid)
+                local id = assert(S.get_winid(), "winid should be valid here")
+                local config = api.nvim_win_get_config(id)
 
                 config.row, config.width = calc_window_size(config.height, config.width)
 
-                api.nvim_win_set_config(winid, config)
+                api.nvim_win_set_config(id, config)
             end
         end
     })
@@ -122,7 +130,7 @@ function M.create_window(ui, lines)
     -- Add default keymap for closing the ui via `q`
     vim.keymap.set("n", "q", function()
         M.destroy_window()
-    end, { buffer = bufnr })
+    end, { buffer = bufnr, silent = true, nowait = true })
 end
 
 ---Destroys the created floating window
