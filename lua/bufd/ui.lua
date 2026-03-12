@@ -85,9 +85,15 @@ function M.create_window(ui, lines)
         bufnr = api.nvim_create_buf(false, true)
         S.set_bufnr(bufnr)
 
-        -- Recommended UI buffer settings
         api.nvim_buf_set_name(bufnr, "Bufd")
+
         api.nvim_set_option_value("filetype", "bufd", { buf = bufnr })
+        api.nvim_set_option_value("bufhidden", "hide", { buf = bufnr })
+        api.nvim_set_option_value("swapfile", false, { buf = bufnr })
+
+        -- Hide this buffer from appearing in buf list
+        api.nvim_set_option_value("buflisted", false, { buf = bufnr })
+
         -- Tell Neovim we will handle the :w action
         api.nvim_set_option_value('buftype', 'acwrite', { buf = bufnr })
     else
