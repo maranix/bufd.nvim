@@ -107,7 +107,7 @@ function M.create_window(ui, lines)
                 local id = assert(S.get_winid(), "winid should be valid here")
                 local config = api.nvim_win_get_config(id)
 
-                config.row, config.width = calc_window_size(config.height, config.width)
+                config.row, config.col = calc_window_size(config.height, config.width)
 
                 api.nvim_win_set_config(id, config)
             end
