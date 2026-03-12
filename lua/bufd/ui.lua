@@ -21,8 +21,8 @@ end
 
 ---@class BufdUIState
 ---
----@field bufnr integer|nil The id of the bufd scratch buffer
----@field winid integer|nil The id of the window displaying bufd
+---@field bufnr integer? The id of the bufd scratch buffer
+---@field winid integer? The id of the window displaying bufd
 local _state = {
     bufnr = nil,
     winid = nil,
@@ -42,12 +42,12 @@ function S.is_winid_valid()
     return _state.winid ~= nil and api.nvim_win_is_valid(_state.winid)
 end
 
----@return integer|nil
+---@return integer?
 function S.get_bufnr()
     return _state.bufnr
 end
 
----@return integer|nil
+---@return integer?
 function S.get_winid()
     return _state.winid
 end
@@ -62,26 +62,35 @@ function S.set_winid(winid)
     _state.winid = winid
 end
 
+---Resets winid back to nil
+---
+---Use this to clear the state and notify that floating window is closed
+function S.reset_winid()
+    _state.winid = nil
+end
+
 --- Creates a centered floating window and writes the provided lines into it.
 ---
----@param height integer
----@param width integer
+---@param ui UIConfig
 ---@param lines string[] The text lines to populate the buffe
-function M.create_window(height, width, lines)
+function M.create_window(ui, lines)
     if S.is_winid_valid() then
-        api.nvim_set_current_win(_state.winid)
+        local id = assert(S.get_winid(), "win_id should be valid here")
+        api.nvim_set_current_win(id)
         return
     end
 
-    local bufnr = _state.bufnr
+    local bufnr
     if not S.is_bufnr_valid() then
         bufnr = api.nvim_create_buf(false, true)
         S.set_bufnr(bufnr)
+    else
+        bufnr = assert(S.get_bufnr(), "bufnr should be valid here")
     end
 
     api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
 
-    local row, col = calc_window_size(height, width)
+    local row, col = calc_window_size(ui.height, ui.width)
 
     --- Responsive floating window
     vim.api.nvim_create_autocmd("VimResized", {
@@ -97,20 +106,18 @@ function M.create_window(height, width, lines)
         end
     })
 
-    S.set_winid(
-        api.nvim_open_win(bufnr, true,
-            {
-                relative = "editor", -- Relative to the editor
-                row = row,
-                col = col,
-                width = width,
-                height = height,
-                border = "single", -- Use a single-line border
-                style = "minimal", -- Minimal UI style
-                focusable = true,  -- Make it focusable
-            }
-        )
-    )
+    ---@type vim.api.keyset.win_config
+    local default_opts = {
+        relative = "editor", -- Relative to the editor
+        row = row,
+        col = col,
+        style = "minimal", -- Minimal UI style
+        focusable = true   -- Make it focusable
+    }
+
+    local win_conf = vim.tbl_deep_extend("force", default_opts, ui)
+
+    S.set_winid(api.nvim_open_win(bufnr, true, win_conf))
 
     -- Add default keymap for closing the ui via `q`
     vim.keymap.set("n", "q", function()
@@ -121,8 +128,9 @@ end
 ---Destroys the created floating window
 function M.destroy_window()
     if S.is_winid_valid() then
-        api.nvim_win_close(_state.winid, true)
-        _state.winid = nil
+        local id = assert(S.get_winid(), "winid should be valid here")
+        api.nvim_win_close(id, true)
+        S.reset_winid()
     end
 end
 

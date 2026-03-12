@@ -1,14 +1,22 @@
 local M = {}
 
----@class Config
+---@class UIConfig
 ---
 ---@field height integer Height of the floating window
 ---@field width integer Width of the floating window
+---@field border? 'none'|'single'|'double'|'rounded'|'solid'|'shadow'|string[]
+
+---@class Config
+---
+---@field ui UIConfig
 
 ---@type Config
 local _config = {
-    height = 4,
-    width = 40
+    ui = {
+        height = 4,
+        width = 40,
+        border = "single"
+    }
 }
 
 ---@return Config

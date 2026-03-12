@@ -19,8 +19,6 @@ local function get_buffer_lines(bufs)
         end
     end
 
-    print(vim.inspect(lines))
-
     return lines
 end
 
@@ -40,7 +38,7 @@ function M.open_ui()
     local buffers = api.nvim_list_bufs()
     local lines = get_buffer_lines(buffers)
 
-    ui.create_window(config.height, config.width, lines)
+    ui.create_window(config.ui, lines)
 end
 
 function M.close_ui()
