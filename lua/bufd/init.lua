@@ -1,4 +1,5 @@
 local M   = {}
+local fn  = vim.fn
 local api = vim.api
 
 ---@param bufs integer[] current opened buffers from neovim api
@@ -24,27 +25,46 @@ end
 
 ---Reads the UI, diffs against actual open buffers and deletes missing ones
 ---
----@param curr string[] The current lines in the scratch buffer upon saving
-local function close_removed_buffers(curr)
-    local curr_set = {}
+---@param prev string[] Lines in the scratch buffer before saving
+---@param curr string[] Lines in the scratch buffer post saving
+local function close_removed_buffers(prev, curr)
+    -- Build set of buffers that should remain
+    local keep = {}
 
-    for i = 1, #curr do
-        local id_str = tonumber(curr[i]:match("^(%d+):"))
-
-        if id_str then
-            local b_id = assert(tonumber(id_str), "string to number conversion should not fail here")
-            curr_set[b_id] = true
+    for _, line in ipairs(curr) do
+        local id = tonumber(line:match("^(%d+):"))
+        if id then
+            keep[id] = true
         end
     end
 
-    local buffers = api.nvim_list_bufs()
-    for _, b_id in ipairs(buffers) do
-        if vim.fn.buflisted(b_id) == 1 and not curr_set[b_id] then
-            local ok, error = pcall(vim.cmd, "bdelete " .. b_id)
-            if not ok then
-                vim.notify("bufd.nvim: Unsaved changes in buffer " .. b_id, vim.log.levels.WARN)
-                print(vim.inspect(error))
+    -- Id of the buf which will be used as an alternative for the opened window
+    local alt_buf = nil
+    local stale_buffs = {}
+    for _, line in ipairs(prev) do
+        local buf = assert(tonumber(line:match("^(%d+):")), "Scratch buffer state is out of sync, Invalid line.")
+
+        local buflisted = api.nvim_get_option_value("buflisted", { buf = buf })
+        if buflisted and not keep[buf] then
+            stale_buffs[buf] = true
+        elseif not alt_buf then
+            alt_buf = buf -- Store the id of the first common buf
+        end
+    end
+
+    -- TODO: There exists a case when multiple windows are opened(Vsplit and Hsplit) and upon deletion
+    -- it may switch the buffer of all visible windows to the same one alt_buf buffer upon deletion
+    for buf in pairs(stale_buffs) do
+        local winid = fn.bufwinid(buf)
+        if winid >= 0 then
+            local target_buf = alt_buf or api.nvim_get_current_buf()
+            api.nvim_win_set_buf(winid, target_buf)
+
+            if not alt_buf then
+                vim.cmd("BufdClose") -- Close plugin window
             end
+
+            api.nvim_buf_delete(buf, { force = false })
         end
     end
 end
@@ -75,9 +95,9 @@ function M.open_ui()
         buffer = assert(ui.state.get_bufnr(), "bufnr should be valid here"),
         callback = function()
             local bufnr = assert(ui.state.get_bufnr(), "bufnr should be valid here")
-            local curr_lines = api.nvim_buf_get_lines(bufnr, 0, -1, false)
+            local curr = api.nvim_buf_get_lines(bufnr, 0, -1, false)
 
-            close_removed_buffers(curr_lines)
+            close_removed_buffers(lines, curr)
 
             -- reset modified state so UI behaves like a panel
             api.nvim_set_option_value("modified", false, { buf = bufnr })
