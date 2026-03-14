@@ -110,6 +110,10 @@ function M.open_ui()
 
             close_removed_buffers(lines, curr)
 
+            -- Update the lines to current modification to keep in sync
+            -- while the UI is kept opened
+            lines = curr
+
             -- reset modified state so UI behaves like a panel
             api.nvim_set_option_value("modified", false, { buf = bufnr })
         end
