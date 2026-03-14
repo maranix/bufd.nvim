@@ -13,8 +13,8 @@ local M = {}
 ---@type Config
 local _config = {
     ui = {
-        height = 4,
-        width = 40,
+        height = 8,
+        width = 80,
         border = "single"
     }
 }
