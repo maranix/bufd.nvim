@@ -28,6 +28,11 @@ end
 ---@param prev string[] Lines in the scratch buffer before saving
 ---@param curr string[] Lines in the scratch buffer post saving
 local function close_removed_buffers(prev, curr)
+    -- Guard rail for only removing buffers, when something was deleted
+    if #curr >= #prev then
+        return
+    end
+
     -- Build set of buffers that should remain
     local keep = {}
 
@@ -41,7 +46,6 @@ local function close_removed_buffers(prev, curr)
     -- Id of the buf which will be used as an alternative for the opened window
     local alt_buf = {}
     local stale_buffs = {}
-    print(vim.inspect(prev))
     for _, line in ipairs(prev) do
         local buf = assert(tonumber(line:match("^(%d+):")), "Scratch buffer state is out of sync, Invalid line.")
 
