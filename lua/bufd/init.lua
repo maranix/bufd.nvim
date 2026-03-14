@@ -39,31 +39,42 @@ local function close_removed_buffers(prev, curr)
     end
 
     -- Id of the buf which will be used as an alternative for the opened window
-    local alt_buf = nil
+    local alt_buf = {}
     local stale_buffs = {}
+    print(vim.inspect(prev))
     for _, line in ipairs(prev) do
         local buf = assert(tonumber(line:match("^(%d+):")), "Scratch buffer state is out of sync, Invalid line.")
 
         local buflisted = api.nvim_get_option_value("buflisted", { buf = buf })
         if buflisted and not keep[buf] then
             stale_buffs[buf] = true
-        elseif not alt_buf then
-            alt_buf = buf -- Store the id of the first common buf
+        else
+            alt_buf[buf] = true -- Store the id of the first common buf
         end
     end
 
-    -- TODO: There exists a case when multiple windows are opened(Vsplit and Hsplit) and upon deletion
-    -- it may switch the buffer of all visible windows to the same one alt_buf buffer upon deletion
     for buf in pairs(stale_buffs) do
         local winid = fn.bufwinid(buf)
         if winid >= 0 then
-            local target_buf = alt_buf or api.nvim_get_current_buf()
-            api.nvim_win_set_buf(winid, target_buf)
+            local target_buf
 
-            if not alt_buf then
+            if not vim.tbl_isempty(alt_buf) then
+                for alt, unused in pairs(alt_buf) do
+                    if unused then
+                        target_buf = alt
+                        alt_buf[alt] = false
+                        break
+                    end
+                end
+            end
+
+            if not target_buf then
+                target_buf = api.nvim_get_current_buf()
                 vim.cmd("BufdClose") -- Close plugin window
             end
 
+
+            api.nvim_win_set_buf(winid, target_buf)
             api.nvim_buf_delete(buf, { force = false })
         end
     end
